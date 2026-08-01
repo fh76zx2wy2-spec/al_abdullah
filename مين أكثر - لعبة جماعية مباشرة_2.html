@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>👑 مين أكثر — لعبة جماعية مباشرة</title>
+<style>
+:root{
+  --cream:#fbf7f1; --cream2:#f6ecdd; --pink:#f7dbe1; --pink-deep:#df9aab;
+  --gold:#c9a135; --gold-light:#ecd28c; --sage:#bcd0b2; --sage-deep:#82a177;
+  --lavender:#a78bda; --rose:#e0776a;
+  --ink:#4a3b34; --ink-soft:#8a7a6d;
+  --glass:rgba(255,255,255,0.55); --glass-strong:rgba(255,255,255,0.82);
+  --shadow:rgba(150,120,90,0.22);
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  margin:0; min-height:100vh; color:var(--ink);
+  font-family:"Segoe UI","Tahoma","Arial",sans-serif;
+  background:linear-gradient(150deg,var(--cream) 0%, var(--cream2) 35%, var(--pink) 72%, var(--gold-light) 100%);
+  overflow-x:hidden; position:relative;
+}
+.blob{position:fixed; border-radius:50%; filter:blur(60px); opacity:.4; z-index:0; pointer-events:none; animation:float 12s ease-in-out infinite;}
+.blob.b1{width:280px; height:280px; background:var(--pink-deep); top:-60px; right:-60px;}
+.blob.b2{width:240px; height:240px; background:var(--sage); bottom:-40px; left:-60px; animation-delay:2s;}
+.blob.b3{width:220px; height:220px; background:var(--gold-light); top:40%; left:50%; animation-delay:4s;}
+@keyframes float{0%,100%{transform:translateY(0) translateX(0);} 50%{transform:translateY(-22px) translateX(14px);}}
+
+#app{position:relative; z-index:2; min-height:100vh; display:flex; flex-direction:column;}
+.screen{
+  flex:1; display:none; flex-direction:column; align-items:center; justify-content:center;
+  padding:26px 16px 90px; width:100%; max-width:640px; margin:0 auto; text-align:center;
+  animation:fadeUp .5s ease both;
+}
+.screen.wide{max-width:920px;}
+.screen.active{display:flex;}
+@keyframes fadeUp{from{opacity:0; transform:translateY(16px);} to{opacity:1; transform:translateY(0);}}
+
+.card{
+  width:100%; border-radius:28px; padding:30px 22px;
+  background:var(--glass); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+  border:1px solid rgba(255,255,255,0.7);
+  box-shadow:0 24px 55px var(--shadow), inset 0 1px 0 rgba(255,255,255,0.8);
+}
+.emoji-hero{font-size:50px; margin-bottom:4px;}
+.title-main{
+  font-size:clamp(24px,6.6vw,40px); font-weight:900; margin:4px 0 2px; line-height:1.25;
+  background:linear-gradient(120deg,var(--pink-deep),var(--gold) 55%,var(--sage-deep));
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.title-sub{font-size:clamp(13px,3.4vw,17px); font-weight:700; color:var(--ink-soft); margin-bottom:16px;}
+.desc{font-size:14.5px; line-height:1.85; color:var(--ink-soft); margin:8px 0 4px;}
+
+.btn{
+  font-family:inherit; font-weight:800; font-size:16.5px; cursor:pointer; border:none;
+  padding:14px 30px; border-radius:50px; color:#fff;
+  background:linear-gradient(120deg,var(--pink-deep),var(--gold));
+  box-shadow:0 12px 26px rgba(223,154,171,0.45), inset 0 1px 0 rgba(255,255,255,0.4);
+  transition:transform .15s ease, box-shadow .15s ease;
+}
+.btn:active{transform:scale(.95);}
+.btn.secondary{background:transparent; color:var(--ink); border:2px solid var(--gold); box-shadow:none;}
+.btn.small{padding:9px 18px; font-size:14px;}
+.btn:disabled{opacity:.4; cursor:not-allowed;}
+.btn-row{display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin-top:16px;}
+
+input[type=text]{
+  width:100%; padding:14px 16px; border-radius:14px; border:2px solid rgba(201,161,53,0.35);
+  background:rgba(255,255,255,0.65); color:var(--ink); font-size:17px; font-family:inherit; font-weight:700;
+  outline:none; text-align:center; transition:border-color .2s;
+}
+input[type=text]:focus{border-color:var(--gold);}
+.field-label{font-size:13px; font-weight:800; color:var(--ink-soft); margin:14px 0 6px; text-align:right;}
+
+/* role select */
+.role-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px; width:100%; margin-top:16px;}
+@media(max-width:480px){.role-grid{grid-template-columns:1fr;}}
+.role-card{
+  cursor:pointer; border-radius:22px; padding:24px 14px; border:2px solid rgba(201,161,53,0.3);
+  background:var(--glass); transition:transform .15s, border-color .15s;
+}
+.role-card:hover{border-color:var(--gold); transform:translateY(-3px);}
+.role-card .r-icon{font-size:40px; margin-bottom:8px;}
+.role-card .r-title{font-weight:900; font-size:16px; margin-bottom:4px;}
+.role-card .r-sub{font-size:12.5px; color:var(--ink-soft);}
+
+/* avatar picker */
+.avatar-grid{display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin:6px 0 4px;}
+.avatar-opt{
+  aspect-ratio:1; border-radius:16px; display:flex; align-items:center; justify-content:center;
+  font-size:26px; border:3px solid transparent; cursor:pointer; background:rgba(255,255,255,0.5);
+  transition:transform .15s, border-color .15s;
+}
+.avatar-opt.selected{border-color:var(--ink); transform:scale(1.1); background:rgba(255,255,255,0.9);}
+
+/* lobby */
+.room-code{
+  font-size:clamp(38px,11vw,58px); font-weight:900; letter-spacing:8px; color:var(--ink);
+  background:linear-gradient(120deg,var(--gold),var(--pink-deep)); -webkit-background-clip:text; background-clip:text; color:transparent;
+  margin:6px 0;
+}
+.qr-box{background:#fff; padding:10px; border-radius:18px; display:inline-block; box-shadow:0 10px 24px var(--shadow); margin:10px 0;}
+.qr-box img{display:block; width:180px; height:180px;}
+.joined-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(84px,1fr)); gap:10px; width:100%; margin:14px 0;}
+.joined-chip{
+  display:flex; flex-direction:column; align-items:center; gap:4px; padding:10px 4px; border-radius:16px;
+  background:var(--glass); border:1px solid rgba(255,255,255,0.7); animation:fadeUp .4s ease;
+}
+.joined-chip .av{width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:20px; color:#fff;}
+.joined-chip .nm{font-size:12px; font-weight:800;}
+.waiting-note{font-size:13px; color:var(--ink-soft); margin-top:4px;}
+
+/* voting */
+.round-tag{font-size:13px; font-weight:800; color:var(--gold); opacity:.9; margin-bottom:8px;}
+.question-card{
+  width:100%; border-radius:26px; padding:24px 20px; margin-bottom:14px;
+  background:linear-gradient(160deg, rgba(255,255,255,0.75), rgba(255,255,255,0.4));
+  border:2px solid var(--gold-light); box-shadow:0 18px 40px var(--shadow);
+  font-size:clamp(19px,5.4vw,26px); font-weight:900; line-height:1.6; color:var(--ink);
+}
+.timer-wrap{width:100%; margin-bottom:6px;}
+.timer-bar-track{width:100%; height:10px; border-radius:8px; background:rgba(201,161,53,0.18); overflow:hidden;}
+.timer-bar-fill{height:100%; background:linear-gradient(90deg,var(--sage-deep),var(--gold)); width:100%; transition:width 1s linear, background 0.4s;}
+.timer-bar-fill.low{background:linear-gradient(90deg,#e0645f,var(--pink-deep));}
+.timer-label{font-size:13px; font-weight:800; color:var(--ink-soft); margin:6px 0 14px; display:flex; justify-content:space-between;}
+.players-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:12px; width:100%;}
+.player-card{
+  cursor:pointer; border-radius:20px; padding:16px 8px; border:2px solid rgba(201,161,53,0.25);
+  background:var(--glass); display:flex; flex-direction:column; align-items:center; gap:6px;
+  transition:transform .15s ease, border-color .15s ease, background .15s ease, opacity .2s; user-select:none; position:relative;
+}
+.player-card.disabled{opacity:.55; cursor:default;}
+.player-card:active{transform:scale(.94);}
+.player-card .avatar{width:46px; height:46px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:20px; color:#fff;}
+.player-card .name{font-weight:800; font-size:14px;}
+.player-card .vote-count{
+  position:absolute; top:-8px; left:-8px; background:var(--sage-deep); color:#fff; font-size:11px; font-weight:900;
+  border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center;
+  box-shadow:0 4px 8px rgba(0,0,0,0.15); opacity:0; transform:scale(.5); transition:opacity .2s, transform .2s;
+}
+.player-card .vote-count.show{opacity:1; transform:scale(1);}
+.player-card.pulse{animation:cardPulse .35s ease;}
+@keyframes cardPulse{0%{transform:scale(1);} 45%{transform:scale(1.08);} 100%{transform:scale(1);}}
+.vote-progress{font-size:13.5px; font-weight:800; color:var(--sage-deep); margin-top:14px;}
+.voted-banner{
+  width:100%; border-radius:18px; padding:18px; margin-bottom:14px; background:linear-gradient(120deg,var(--sage),var(--sage-deep));
+  color:#fff; font-weight:900; font-size:16px; box-shadow:0 14px 28px var(--shadow);
+}
+
+/* badge */
+.medal-wrap{position:relative; width:140px; height:140px; margin:6px auto 8px;}
+.medal{
+  width:100%; height:100%; border-radius:50%;
+  background:radial-gradient(circle at 35% 28%, var(--gold-light), var(--gold) 55%, #a67f1f);
+  border:5px solid #fff; box-shadow:0 16px 30px rgba(201,161,53,0.4), inset 0 0 20px rgba(255,255,255,0.4);
+  display:flex; align-items:center; justify-content:center; font-size:54px;
+  position:relative; overflow:hidden; animation:medalPop .6s cubic-bezier(.3,1.4,.4,1);
+}
+@keyframes medalPop{0%{transform:scale(0) rotate(-40deg); opacity:0;} 60%{transform:scale(1.15) rotate(8deg);} 100%{transform:scale(1) rotate(0); opacity:1;}}
+.medal::after{content:''; position:absolute; top:0; left:-150%; width:60%; height:100%; background:linear-gradient(120deg, transparent, rgba(255,255,255,0.75), transparent); animation:shine 2.2s ease-in-out infinite;}
+@keyframes shine{0%{left:-150%;} 60%{left:150%;} 100%{left:150%;}}
+.badge-title{font-size:clamp(22px,6vw,30px); font-weight:900; margin:10px 0 2px; background:linear-gradient(120deg,var(--pink-deep),var(--gold)); -webkit-background-clip:text; background-clip:text; color:transparent;}
+.badge-winner{font-size:clamp(19px,5.2vw,25px); font-weight:800; color:var(--ink); margin-bottom:4px;}
+.badge-question{font-size:13.5px; color:var(--ink-soft); opacity:.85;}
+.badge-empty{font-size:15px; color:var(--ink-soft); margin-top:8px;}
+
+/* final */
+.crown-name{font-size:clamp(24px,7vw,36px); font-weight:900; margin:4px 0; background:linear-gradient(120deg,var(--gold),var(--pink-deep)); -webkit-background-clip:text; background-clip:text; color:transparent;}
+.rank-list{display:flex; flex-direction:column; gap:10px; width:100%; margin-top:16px;}
+.rank-row{display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:18px; background:var(--glass); border:1px solid rgba(255,255,255,0.7); text-align:right;}
+.rank-row .medal-icon{font-size:22px; min-width:28px; text-align:center;}
+.rank-row .rank-name{flex:1; font-weight:800; font-size:15px;}
+.rank-row .rank-votes{font-size:13px; font-weight:800; color:var(--gold);}
+.rank-row .rank-titles{font-size:11px; color:var(--ink-soft); margin-top:2px;}
+
+/* setup guide */
+.steps{text-align:right; font-size:14px; line-height:2; color:var(--ink); width:100%;}
+.steps b{color:var(--gold);}
+textarea{
+  width:100%; min-height:170px; border-radius:14px; border:2px solid rgba(201,161,53,0.35);
+  background:rgba(255,255,255,0.7); padding:12px; font-family:monospace; font-size:12.5px; color:var(--ink);
+  direction:ltr; text-align:left; resize:vertical;
+}
+.config-box{
+  width:100%; text-align:left; direction:ltr; background:rgba(255,255,255,0.7); border-radius:14px; padding:14px;
+  font-family:monospace; font-size:12.5px; color:var(--ink); border:2px dashed rgba(201,161,53,0.4); margin:10px 0;
+}
+
+.topbar{position:fixed; top:14px; left:14px; right:14px; z-index:20; display:flex; justify-content:space-between; pointer-events:none;}
+.topbar > *{pointer-events:auto;}
+.icon-btn{width:42px; height:42px; border-radius:50%; border:2px solid var(--gold); background:rgba(255,255,255,0.75); color:var(--ink); font-size:18px; display:flex; align-items:center; justify-content:center; cursor:pointer; backdrop-filter:blur(6px);}
+.progress-pill{background:rgba(255,255,255,0.75); border:2px solid var(--gold); border-radius:30px; padding:8px 15px; font-weight:800; font-size:12.5px; color:var(--ink); backdrop-filter:blur(6px);}
+.error-msg{color:#b5493f; font-weight:800; font-size:13.5px; margin-top:8px; min-height:18px;}
+
+#confetti-canvas{position:fixed; inset:0; z-index:50; pointer-events:none;}
+::-webkit-scrollbar{width:8px;}
+::-webkit-scrollbar-thumb{background:var(--gold); border-radius:8px;}
+@media (prefers-reduced-motion: reduce){ *{animation-duration:.001ms !important; transition-duration:.001ms !important;} }
+</style>
+</head>
+<body>
+
+<div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+<div class="topbar">
+  <button class="icon-btn" id="muteBtn" title="كتم الصوت">🔊</button>
+  <div class="progress-pill" id="progressPill" style="display:none;"></div>
+</div>
+<canvas id="confetti-canvas"></canvas>
+
+<div id="app">
+
+  <!-- SETUP GUIDE (shown only if Firebase config not filled in) -->
+  <section class="screen" id="screen-guide">
+    <div class="card">
+      <div class="emoji-hero">⚙️</div>
+      <div class="title-main">خطوة أخيرة قبل ما نبدأ</div>
+      <div class="desc">اللعبة الجماعية المباشرة تحتاج قاعدة بيانات مجانية (Firebase) تربط جهاز المضيفة بجوالات الجميع لحظيًا. خذي 5 دقائق وسوّي هذي الخطوات مرة وحدة بس:</div>
+      <div class="steps">
+        <b>1)</b> ادخلي على console.firebase.google.com وسجلي دخول بحساب Google، ثم "Add project" وأنشئي مشروع جديد (مجاني بالكامل).<br>
+        <b>2)</b> من القائمة اليسرى: Build ← Firestore Database ← Create database، اختاري "Start in test mode" ثم أي موقع سيرفر قريب.<br>
+        <b>3)</b> من ⚙️ Project settings (بجانب Project Overview) ← نزلي لتبويب "Your apps" ← اضغطي أيقونة الويب </> ← سمّي التطبيق أي اسم ← Register app.<br>
+        <b>4)</b> بيظهر لك كود فيه firebaseConfig = {...} — انسخي القيم وحطيها مكان القيم الوهمية داخل ملف اللعبة (ابحثي عن كلمة CONFIG في أول السكربت).<br>
+        <b>5)</b> ارجعي لـ Firestore Database ← تبويب Rules ← امسحي الموجود والصقي القواعد هذي واضغطي Publish:
+      </div>
+      <textarea readonly id="rulesText">rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /rooms/{roomId} {
+      allow read, write: if true;
+      match /players/{playerId} {
+        allow read, write: if true;
+      }
+      match /rounds/{roundId} {
+        allow read, write: if true;
+        match /votes/{voteId} {
+          allow read, write: if true;
+        }
+      }
+    }
+  }
+}</textarea>
+      <p class="desc" style="font-size:12.5px;">ملاحظة: هذي القواعد مفتوحة لأن اللعبة بدون تسجيل دخول — مناسبة لجلسة عائلية خاصة يشارك فيها الرمز مع المقربين فقط، مو للنشر العام.</p>
+      <div class="btn-row">
+        <button class="btn secondary" id="copyRulesBtn">📋 نسخ القواعد</button>
+      </div>
+      <p class="desc" style="margin-top:16px;">بعد ما تحطين القيم الصحيحة مكان CONFIG في الكود وتحفظين الملف، افتحيه من جديد وبيختفي هذا الشرح تلقائيًا.</p>
+    </div>
+  </section>
+
+  <!-- ROLE SELECT -->
+  <section class="screen" id="screen-role">
+    <div class="card">
+      <div class="emoji-hero">👑</div>
+      <div class="title-main">مين أكثر؟</div>
+      <div class="title-sub">اجتماع آل عبدالله 🌸 حوطة بني تميم — لعبة جماعية مباشرة</div>
+      <div class="role-grid">
+        <div class="role-card" id="pickHost">
+          <div class="r-icon">📺</div>
+          <div class="r-title">أنا المضيفة</div>
+          <div class="r-sub">افتحيها على التلفاز أو اللابتوب وأنشئي غرفة</div>
+        </div>
+        <div class="role-card" id="pickPlayer">
+          <div class="r-icon">📱</div>
+          <div class="r-title">أنا مشاركة</div>
+          <div class="r-sub">افتحيها من جوالك وانضمي برمز الغرفة</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOST: CREATE -->
+  <section class="screen" id="screen-host-create">
+    <div class="card">
+      <div class="emoji-hero">📺</div>
+      <div class="title-main">جاهزة نبدأ؟</div>
+      <div class="desc">اضغطي الزر عشان تنشئي غرفة جديدة، وبيظهر لك رمز تشاركينه مع الكل.</div>
+      <div class="btn-row"><button class="btn" id="createRoomBtn">✨ إنشاء غرفة جديدة</button></div>
+    </div>
+  </section>
+
+  <!-- HOST: LOBBY -->
+  <section class="screen wide" id="screen-host-lobby">
+    <div class="card">
+      <div class="title-sub">شاركي هذا الرمز مع المشاركات</div>
+      <div class="room-code" id="hostRoomCode">------</div>
+      <div class="qr-box"><img id="hostQr" alt="QR"></div>
+      <div class="btn-row">
+        <button class="btn small secondary" id="copyLinkBtn">🔗 نسخ رابط الدعوة</button>
+      </div>
+      <div class="title-sub" style="margin-top:20px;">المنضمات (<span id="joinedCount">0</span>)</div>
+      <div class="joined-grid" id="joinedGrid"></div>
+      <div class="waiting-note" id="hostWaitNote">بانتظار انضمام مشاركتين على الأقل...</div>
+      <div class="btn-row"><button class="btn" id="hostStartBtn" disabled>🎉 ابدأي اللعبة</button></div>
+    </div>
+  </section>
+
+  <!-- HOST: MONITOR (question/result/final all render here for host) -->
+  <section class="screen wide" id="screen-host-monitor">
+    <div class="round-tag" id="hostRoundTag"></div>
+    <div class="question-card" id="hostQuestionText"></div>
+    <div class="timer-wrap" id="hostTimerWrap">
+      <div class="timer-bar-track"><div class="timer-bar-fill" id="hostTimerBar"></div></div>
+      <div class="timer-label"><span id="hostTimerNum"></span><span id="hostVoteLabel"></span></div>
+    </div>
+    <div class="players-grid" id="hostPlayersGrid"></div>
+    <div class="btn-row" id="hostQuestionControls">
+      <button class="btn secondary small" id="hostForceRevealBtn">⏭️ إنهاء التصويت الآن</button>
+    </div>
+
+    <!-- badge overlay content (shown within same screen by swapping visibility) -->
+    <div id="hostBadgeBlock" style="display:none; width:100%;">
+      <div class="medal-wrap"><div class="medal" id="hostMedalEmoji">🏅</div></div>
+      <div class="badge-title" id="hostBadgeTitle"></div>
+      <div class="badge-winner" id="hostBadgeWinner"></div>
+      <div class="badge-question" id="hostBadgeQuestion"></div>
+      <div class="btn-row"><button class="btn small secondary" id="hostNextBtn">➡️ السؤال التالي الآن</button></div>
+    </div>
+  </section>
+
+  <!-- HOST: FINAL -->
+  <section class="screen wide" id="screen-host-final">
+    <div class="emoji-hero">🏆</div>
+    <div class="title-main" style="font-size:clamp(22px,6vw,30px);">نجمة اجتماع آل عبدالله</div>
+    <div class="title-sub">في حوطة بني تميم</div>
+    <div class="crown-name" id="hostCrownName"></div>
+    <div class="rank-list" id="hostRankList"></div>
+    <div class="btn-row"><button class="btn" id="hostRestartBtn">🔄 غرفة جديدة</button></div>
+  </section>
+
+  <!-- PLAYER: JOIN -->
+  <section class="screen" id="screen-join">
+    <div class="card">
+      <div class="emoji-hero">📱</div>
+      <div class="title-main">انضمي للعبة</div>
+      <div class="field-label">اسمك</div>
+      <input type="text" id="joinName" maxlength="16" placeholder="اكتبي اسمك">
+      <div class="field-label">رمز الغرفة (6 أرقام)</div>
+      <input type="text" id="joinCode" maxlength="6" inputmode="numeric" placeholder="000000">
+      <div class="field-label">اختاري رمزك المميز</div>
+      <div class="avatar-grid" id="avatarGrid"></div>
+      <div class="error-msg" id="joinError"></div>
+      <div class="btn-row"><button class="btn" id="joinBtn">✨ انضمام</button></div>
+    </div>
+  </section>
+
+  <!-- PLAYER: WAITING -->
+  <section class="screen" id="screen-waiting">
+    <div class="card">
+      <div class="emoji-hero" id="waitAvatar">🌸</div>
+      <div class="title-main" style="font-size:24px;">انضممتِ بنجاح!</div>
+      <div class="desc" id="waitName"></div>
+      <div class="desc" style="margin-top:10px;">🎉 بانتظار المضيفة تبدأ اللعبة...</div>
+    </div>
+  </section>
+
+  <!-- PLAYER: VOTING -->
+  <section class="screen" id="screen-vote">
+    <div class="round-tag" id="voteRoundTag"></div>
+    <div class="question-card" id="voteQuestionText"></div>
+    <div class="timer-wrap">
+      <div class="timer-bar-track"><div class="timer-bar-fill" id="voteTimerBar"></div></div>
+      <div class="timer-label"><span id="voteTimerNum"></span><span id="voteCountLabel"></span></div>
+    </div>
+    <div id="votedBanner" class="voted-banner" style="display:none;">✅ تم استلام صوتك، بانتظار البقية...</div>
+    <div class="players-grid" id="voteGrid"></div>
+    <div class="vote-progress" id="voteHint">اضغطي على بطاقة اللي تستاهل هالسؤال 💫</div>
+  </section>
+
+  <!-- PLAYER: RESULT -->
+  <section class="screen" id="screen-vote-result">
+    <div class="medal-wrap"><div class="medal" id="voteMedalEmoji">🏅</div></div>
+    <div class="badge-title" id="voteBadgeTitle"></div>
+    <div class="badge-winner" id="voteBadgeWinner"></div>
+    <div class="badge-question" id="voteBadgeQuestion"></div>
+    <div class="desc" style="margin-top:10px;">استنونا شوي... السؤال الجاي بيوصلكم تلقائيًا 🌟</div>
+  </section>
+
+  <!-- PLAYER: FINAL -->
+  <section class="screen" id="screen-vote-final">
+    <div class="emoji-hero">🏆</div>
+    <div class="title-main" style="font-size:clamp(22px,6vw,30px);">نجمة اجتماع آل عبدالله</div>
+    <div class="crown-name" id="voteCrownName"></div>
+    <div class="rank-list" id="voteRankList"></div>
+    <p class="desc" style="margin-top:14px;">كانت جلسة حلوة 💛</p>
+  </section>
+
+</div>
+
+<script type="module">
+/* ======================================================================
+   CONFIG — استبدلي القيم هذي بقيم مشروع Firebase الخاص فيك (Project settings > Your apps)
+   ====================================================================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyACQG6cl3q6HTFJ5lYElQniZxjNdhz9QPo",
+  authDomain: "al-abdullah-family-game.firebaseapp.com",
+  projectId: "al-abdullah-family-game",
+  storageBucket: "al-abdullah-family-game.firebasestorage.app",
+  messagingSenderId: "979701493442",
+  appId: "1:979701493442:web:95437229612d29d49d955b"
+};
+/* ====================================================================== */
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getFirestore, doc, setDoc, getDoc, onSnapshot, collection,
+  updateDoc, increment, serverTimestamp, query, orderBy, writeBatch
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+function $(id){return document.getElementById(id);}
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  $(id).classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+const CONFIG_IS_PLACEHOLDER = firebaseConfig.apiKey === "YOUR_API_KEY";
+if(CONFIG_IS_PLACEHOLDER){
+  showScreen('screen-guide');
+  $('copyRulesBtn').addEventListener('click', ()=>{
+    $('rulesText').select();
+    document.execCommand('copy');
+    $('copyRulesBtn').textContent = '✅ تم النسخ';
+    setTimeout(()=>{ $('copyRulesBtn').textContent='📋 نسخ القواعد'; },1800);
+  });
+  // stop here — rest of the app needs a real config
+  throw new Error('Firebase config not set yet — showing setup guide.');
+}
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+/* ================= GAME DATA ================= */
+const BADGES = [
+  {q:"مين أكثر وحدة حنونة",                       emoji:"💖", title:"وسام القلب الحنون"},
+  {q:"مين أكثر وحدة صبورة وبالها طويل",             emoji:"🕊️", title:"وسام الصبر"},
+  {q:"مين أكثر وحدة تحب التصوير",                   emoji:"📸", title:"عدسة الاجتماع"},
+  {q:"مين أكثر وحدة ذوقها صعب",                     emoji:"✨", title:"وسام الذوق الرفيع"},
+  {q:"مين أكثر وحدة تصير لها مواقف محرجة",           emoji:"😂", title:"ملكة المواقف الطريفة"},
+  {q:"مين أكثر وحدة رومانسية",                      emoji:"🌹", title:"ملكة الرومانسية"},
+  {q:"مين أكثر وحدة تعرف أخبار العائلة",             emoji:"📰", title:"مراسلة العائلة"},
+  {q:"مين أكثر وحدة طبخها لذيذ",                     emoji:"👩🏻‍🍳", title:"شيف الاجتماع"},
+  {q:"مين أكثر وحدة تحب السفر",                      emoji:"✈️", title:"سفيرة السفر"},
+  {q:"مين أكثر وحدة تتأخر عن الموعد",                emoji:"⏰", title:"ملكة التأخير"},
+  {q:"مين أكثر وحدة تنام كثير",                      emoji:"😴", title:"أميرة النوم"},
+  {q:"مين أكثر وحدة تنسى وين حطت الجوال",            emoji:"📱", title:"ملكة النسيان"},
+  {q:"مين أكثر وحدة تخلص فلوسها بسرعة",              emoji:"💸", title:"ملكة التسوق"},
+  {q:"مين أكثر وحدة منظمة",                          emoji:"📋", title:"ملكة التنظيم"},
+  {q:"مين أكثر وحدة تحب الشاي",                      emoji:"🍵", title:"عاشقة الشاي"},
+  {q:"مين أكثر وحدة صوتها معروف ومميز",              emoji:"🎤", title:"الصوت الذهبي"},
+  {q:"مين أكثر وحدة تستحق لقب ملكة الأناقة",         emoji:"👑", title:"ملكة الأناقة"},
+  {q:"مين أكثر وحدة تتقن الحلويات الباردة",          emoji:"🍰", title:"شيف الحلويات"},
+  {q:"مين أكثر وحدة تحب الجمعات",                    emoji:"🏡", title:"روح الاجتماع"},
+  {q:"مين أكثر وحدة تحب العناية والاهتمام",          emoji:"🌸", title:"ملكة العناية"}
+];
+const TIME_PER_Q = 15;
+const AVATARS = [
+  {emoji:'🌸', color:'#df9aab'}, {emoji:'🍃', color:'#82a177'}, {emoji:'🌙', color:'#6f6394'},
+  {emoji:'⭐', color:'#c9a135'}, {emoji:'🦋', color:'#a78bda'}, {emoji:'🌷', color:'#e0776a'}
+];
+
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+function genCode(){ return String(Math.floor(100000+Math.random()*900000)); }
+function avatarStyle(av){ return AVATARS.find(a=>a.emoji===av) || AVATARS[0]; }
+
+/* ================= AUDIO ================= */
+let actx=null, muted=false;
+function audioCtx(){ if(!actx){ try{ actx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ actx=null; } } return actx; }
+function beep(freq,dur,type,vol,delay){
+  if(muted) return; const ctx=audioCtx(); if(!ctx) return; delay=delay||0;
+  const t0=ctx.currentTime+delay; const osc=ctx.createOscillator(); const gain=ctx.createGain();
+  osc.type=type||'sine'; osc.frequency.setValueAtTime(freq,t0);
+  gain.gain.setValueAtTime(0.0001,t0); gain.gain.linearRampToValueAtTime(vol||0.14,t0+0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  osc.connect(gain).connect(ctx.destination); osc.start(t0); osc.stop(t0+dur+0.05);
+}
+function sndClick(){ beep(700,0.06,'square',0.08); }
+function sndPop(){ beep(920,0.09,'sine',0.12); }
+function sndTick(){ beep(600,0.05,'square',0.06); }
+function sndWin(){ [523,659,784,1046].forEach((f,i)=>beep(f,0.26,'triangle',0.15,i*0.09)); }
+function sndCrown(){ [392,523,659,784,988].forEach((f,i)=>beep(f,0.3,'triangle',0.16,i*0.09)); }
+$('muteBtn').addEventListener('click', ()=>{ muted=!muted; $('muteBtn').textContent = muted?'🔇':'🔊'; });
+
+/* ================= CONFETTI ================= */
+const canvas = $('confetti-canvas'); const ctx2d = canvas.getContext('2d');
+function resizeCanvas(){ canvas.width=innerWidth; canvas.height=innerHeight; }
+resizeCanvas(); window.addEventListener('resize', resizeCanvas);
+let confettiParticles=[], confettiRunning=false;
+const CONFETTI_COLORS=['#c9a135','#ecd28c','#df9aab','#f7dbe1','#bcd0b2','#ffffff'];
+function burstConfetti(count){
+  count=count||90;
+  for(let i=0;i<count;i++){
+    confettiParticles.push({x:canvas.width/2+(Math.random()-0.5)*canvas.width*0.6, y:-20-Math.random()*80,
+      vx:(Math.random()-0.5)*4, vy:2+Math.random()*4, size:5+Math.random()*7,
+      color:CONFETTI_COLORS[Math.floor(Math.random()*CONFETTI_COLORS.length)],
+      rot:Math.random()*360, vrot:(Math.random()-0.5)*10, shape:Math.random()<0.5?'rect':'circle', life:0});
+  }
+  if(!confettiRunning){ confettiRunning=true; requestAnimationFrame(confettiLoop); }
+}
+function confettiLoop(){
+  ctx2d.clearRect(0,0,canvas.width,canvas.height);
+  confettiParticles.forEach(p=>{
+    p.x+=p.vx; p.y+=p.vy; p.vy+=0.05; p.rot+=p.vrot; p.life++;
+    ctx2d.save(); ctx2d.translate(p.x,p.y); ctx2d.rotate(p.rot*Math.PI/180); ctx2d.fillStyle=p.color;
+    if(p.shape==='rect'){ ctx2d.fillRect(-p.size/2,-p.size/2*0.6,p.size,p.size*0.6); }
+    else{ ctx2d.beginPath(); ctx2d.arc(0,0,p.size/2,0,7); ctx2d.fill(); }
+    ctx2d.restore();
+  });
+  confettiParticles = confettiParticles.filter(p=>p.y<canvas.height+40 && p.life<500);
+  if(confettiParticles.length>0){ requestAnimationFrame(confettiLoop); }
+  else{ confettiRunning=false; ctx2d.clearRect(0,0,canvas.width,canvas.height); }
+}
+
+/* ================= SHARED HELPERS ================= */
+function joinUrl(code){
+  return location.origin + location.pathname + '?code=' + code;
+}
+function renderPlayerCardGrid(container, players, tally, onTap, disabled){
+  container.innerHTML='';
+  players.forEach(p=>{
+    const av = avatarStyle(p.avatar);
+    const card = document.createElement('div');
+    card.className = 'player-card' + (disabled? ' disabled':'');
+    card.innerHTML = `<div class="vote-count">0</div><div class="avatar" style="background:${av.color}">${av.emoji}</div><div class="name">${p.name}</div>`;
+    if(tally && tally[p.id]){
+      const vc = card.querySelector('.vote-count');
+      vc.textContent = tally[p.id]; vc.classList.add('show');
+    }
+    if(onTap && !disabled){ card.addEventListener('click', ()=>onTap(p.id, card)); }
+    container.appendChild(card);
+  });
+}
+function renderRanking(container, players){
+  container.innerHTML='';
+  const medals=['🥇','🥈','🥉'];
+  players.forEach((p,i)=>{
+    const row = document.createElement('div');
+    row.className='rank-row'; row.style.opacity='0';
+    row.style.animation = `fadeUp .45s ease ${i*0.08}s forwards`;
+    const icon = medals[i] || (i+1)+'.';
+    row.innerHTML = `<div class="medal-icon">${icon}</div>
+      <div><div class="rank-name">${p.name}</div>
+      <div class="rank-titles">${(p.titleWins||0)>0 ? '🎖️ فازت بـ '+p.titleWins+' وسام' : 'بانتظار وسامها الأول 🌸'}</div></div>
+      <div class="rank-votes">${p.totalVotes||0} صوت</div>`;
+    container.appendChild(row);
+  });
+}
+
+/* =====================================================================
+   ROLE SELECT + auto-route from QR (?code=XXXXXX)
+   ===================================================================== */
+const urlCode = new URLSearchParams(location.search).get('code');
+const savedPlayer = JSON.parse(localStorage.getItem('mg_player')||'null');
+const savedHostCode = localStorage.getItem('mg_host_code');
+
+$('pickHost').addEventListener('click', ()=>{ sndClick(); showScreen('screen-host-create'); });
+$('pickPlayer').addEventListener('click', ()=>{ sndClick(); showScreen('screen-join'); });
+
+/* avatar picker for join screen */
+let selectedAvatar = null;
+(function buildAvatarPicker(){
+  const grid = $('avatarGrid');
+  AVATARS.forEach(a=>{
+    const b = document.createElement('div');
+    b.className='avatar-opt'; b.textContent=a.emoji; b.style.background = a.color+'33';
+    b.addEventListener('click', ()=>{
+      sndClick();
+      grid.querySelectorAll('.avatar-opt').forEach(x=>x.classList.remove('selected'));
+      b.classList.add('selected'); selectedAvatar = a.emoji;
+    });
+    grid.appendChild(b);
+  });
+})();
+if(urlCode){ $('joinCode').value = urlCode; }
+
+/* =====================================================================
+   HOST LOGIC
+   ===================================================================== */
+let hostCode = null, hostPlayers = [], hostRoom = null;
+let hostTimerInterval = null, hostRevealing = false, hostAutoAdvTimeout = null;
+let unsubHostRoom = null, unsubHostPlayers = null, unsubHostVotes = null;
+let hostCurrentTally = {};
+
+$('createRoomBtn').addEventListener('click', async ()=>{
+  sndClick();
+  $('createRoomBtn').disabled = true;
+  try{
+    let code, ref, snap;
+    for(let i=0;i<5;i++){
+      code = genCode(); ref = doc(db,'rooms',code); snap = await getDoc(ref);
+      if(!snap.exists()) break;
+    }
+    await setDoc(ref, {status:'lobby', qIndex:0, order:[], questionStartedAt:null, timePerQuestion:TIME_PER_Q, createdAt:serverTimestamp()});
+    hostCode = code;
+    localStorage.setItem('mg_host_code', code);
+    attachHost(code);
+  }catch(e){
+    alert('صار خطأ بالاتصال بقاعدة البيانات. تأكدي من إعداد Firebase بشكل صحيح.');
+    console.error(e);
+  }
+  $('createRoomBtn').disabled = false;
+});
+
+function attachHost(code){
+  hostCode = code;
+  $('hostRoomCode').textContent = code;
+  $('hostQr').src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(joinUrl(code));
+  showScreen('screen-host-lobby');
+  $('progressPill').style.display='block';
+
+  if(unsubHostPlayers) unsubHostPlayers();
+  unsubHostPlayers = onSnapshot(query(collection(db,'rooms',code,'players'), orderBy('joinedAt')), snap=>{
+    hostPlayers = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    renderHostPlayerLists();
+  });
+
+  if(unsubHostRoom) unsubHostRoom();
+  unsubHostRoom = onSnapshot(doc(db,'rooms',code), snap=>{
+    const data = snap.data();
+    if(!data) return;
+    const prevStatus = hostRoom ? hostRoom.status : null;
+    const prevQ = hostRoom ? hostRoom.qIndex : null;
+    hostRoom = data;
+    handleHostRoomChange(prevStatus, prevQ);
+  });
+}
+
+function renderHostPlayerLists(){
+  $('joinedCount').textContent = hostPlayers.length;
+  const grid = $('joinedGrid');
+  grid.innerHTML='';
+  hostPlayers.forEach(p=>{
+    const av = avatarStyle(p.avatar);
+    const chip = document.createElement('div'); chip.className='joined-chip';
+    chip.innerHTML = `<div class="av" style="background:${av.color}">${av.emoji}</div><div class="nm">${p.name}</div>`;
+    grid.appendChild(chip);
+  });
+  $('hostStartBtn').disabled = hostPlayers.length < 2;
+  $('hostWaitNote').style.display = hostPlayers.length < 2 ? 'block':'none';
+  $('progressPill').textContent = 'الغرفة: ' + (hostCode||'');
+}
+
+$('hostStartBtn').addEventListener('click', async ()=>{
+  sndClick();
+  const order = shuffle(BADGES.map((_,i)=>i));
+  await updateDoc(doc(db,'rooms',hostCode), {status:'question', order, qIndex:0, questionStartedAt: serverTimestamp()});
+});
+
+function handleHostRoomChange(prevStatus, prevQ){
+  if(hostRoom.status === 'lobby'){
+    showScreen('screen-host-lobby');
+  } else if(hostRoom.status === 'question'){
+    showScreen('screen-host-monitor');
+    $('hostBadgeBlock').style.display='none';
+    $('hostTimerWrap').style.display='block';
+    $('hostPlayersGrid').style.display='grid';
+    $('hostQuestionControls').style.display='flex';
+    if(prevQ !== hostRoom.qIndex || prevStatus !== 'question'){
+      hostStartQuestionMonitor();
+    }
+  } else if(hostRoom.status === 'result'){
+    showScreen('screen-host-monitor');
+    clearInterval(hostTimerInterval);
+    hostShowBadge();
+    if(prevStatus !== 'result' || prevQ !== hostRoom.qIndex){
+      clearTimeout(hostAutoAdvTimeout);
+      hostAutoAdvTimeout = setTimeout(hostNext, 4200);
+    }
+  } else if(hostRoom.status === 'final'){
+    clearInterval(hostTimerInterval);
+    showHostFinal();
+  }
+}
+
+function hostStartQuestionMonitor(){
+  hostRevealing = false;
+  hostCurrentTally = {};
+  const qIndex = hostRoom.qIndex;
+  const badgeIdx = hostRoom.order[qIndex];
+  const item = BADGES[badgeIdx];
+  $('hostRoundTag').textContent = `السؤال ${qIndex+1} من ${hostRoom.order.length}`;
+  $('hostQuestionText').textContent = item.q + '؟';
+  renderPlayerCardGrid($('hostPlayersGrid'), hostPlayers, {}, null, true);
+  updateHostVoteLabel(0);
+
+  if(unsubHostVotes) unsubHostVotes();
+  unsubHostVotes = onSnapshot(collection(db,'rooms',hostCode,'rounds',String(qIndex),'votes'), snap=>{
+    hostCurrentTally = {};
+    snap.forEach(d=>{ const v=d.data().votedFor; hostCurrentTally[v]=(hostCurrentTally[v]||0)+1; });
+    renderPlayerCardGrid($('hostPlayersGrid'), hostPlayers, hostCurrentTally, null, true);
+    updateHostVoteLabel(snap.size);
+    if(snap.size >= hostPlayers.length && hostPlayers.length>0 && !hostRevealing){
+      hostReveal();
+    }
+  });
+
+  const startedAtMs = () => hostRoom.questionStartedAt ? hostRoom.questionStartedAt.toMillis() : Date.now();
+  clearInterval(hostTimerInterval);
+  function tick(){
+    const elapsed = (Date.now() - startedAtMs())/1000;
+    const remaining = Math.max(0, Math.ceil(TIME_PER_Q - elapsed));
+    const pct = Math.max(0, (remaining/TIME_PER_Q)*100);
+    $('hostTimerBar').style.width = pct+'%';
+    $('hostTimerBar').classList.toggle('low', remaining<=5);
+    $('hostTimerNum').textContent = remaining + ' ثانية';
+    if(remaining<=5 && remaining>0) sndTick();
+    if(remaining<=0){
+      clearInterval(hostTimerInterval);
+      hostReveal();
+    }
+  }
+  tick();
+  hostTimerInterval = setInterval(tick, 1000);
+}
+function updateHostVoteLabel(n){ $('hostVoteLabel').textContent = `${n} من ${hostPlayers.length} صوّتن`; }
+
+$('hostForceRevealBtn').addEventListener('click', ()=>{ sndClick(); hostReveal(); });
+$('hostNextBtn').addEventListener('click', ()=>{ sndClick(); clearTimeout(hostAutoAdvTimeout); hostNext(); });
+
+async function hostReveal(){
+  if(hostRevealing) return;
+  hostRevealing = true;
+  clearInterval(hostTimerInterval);
+  if(unsubHostVotes) unsubHostVotes();
+
+  const qIndex = hostRoom.qIndex;
+  const badgeIdx = hostRoom.order[qIndex];
+  let max = 0;
+  Object.values(hostCurrentTally).forEach(v=>{ if(v>max) max=v; });
+  const winnerIds = max>0 ? Object.keys(hostCurrentTally).filter(id=>hostCurrentTally[id]===max) : [];
+  const winnerNames = winnerIds.map(id => { const pl = hostPlayers.find(p=>p.id===id); return pl? pl.name : null; }).filter(Boolean);
+
+  try{
+    const batch = writeBatch(db);
+    Object.entries(hostCurrentTally).forEach(([pid,count])=>{
+      batch.update(doc(db,'rooms',hostCode,'players',pid), {totalVotes: increment(count)});
+    });
+    winnerIds.forEach(pid=>{
+      batch.update(doc(db,'rooms',hostCode,'players',pid), {titleWins: increment(1)});
+    });
+    await batch.commit();
+  }catch(e){ console.error(e); }
+
+  await updateDoc(doc(db,'rooms',hostCode), {
+    status:'result', lastWinnerIds: winnerIds, lastWinnerNames: winnerNames, lastBadgeIdx: badgeIdx
+  });
+}
+
+function hostShowBadge(){
+  $('hostTimerWrap').style.display='none';
+  $('hostPlayersGrid').style.display='none';
+  $('hostQuestionControls').style.display='none';
+  $('hostBadgeBlock').style.display='block';
+  const item = BADGES[hostRoom.lastBadgeIdx];
+  $('hostMedalEmoji').textContent = item.emoji;
+  $('hostBadgeTitle').textContent = item.emoji + ' ' + item.title;
+  $('hostBadgeQuestion').textContent = '« ' + item.q + ' »';
+  const names = hostRoom.lastWinnerNames || [];
+  $('hostBadgeWinner').innerHTML = names.length===0
+    ? '<span class="badge-empty">ما وصلت أصوات كافية هالمرة 😅</span>'
+    : names.join(' و ');
+  sndWin(); burstConfetti(120);
+}
+
+async function hostNext(){
+  const next = hostRoom.qIndex + 1;
+  if(next >= hostRoom.order.length){
+    await updateDoc(doc(db,'rooms',hostCode), {status:'final'});
+  } else {
+    await updateDoc(doc(db,'rooms',hostCode), {status:'question', qIndex: next, questionStartedAt: serverTimestamp()});
+  }
+}
+
+function showHostFinal(){
+  $('progressPill').style.display='none';
+  const ranking = hostPlayers.slice().sort((a,b)=>(b.totalVotes||0)-(a.totalVotes||0));
+  $('hostCrownName').textContent = ranking[0] ? ranking[0].name : '';
+  renderRanking($('hostRankList'), ranking);
+  showScreen('screen-host-final');
+  setTimeout(()=>{ burstConfetti(160); sndCrown(); },300);
+  setTimeout(()=>{ burstConfetti(120); },1300);
+}
+
+$('copyLinkBtn').addEventListener('click', async ()=>{
+  sndClick();
+  try{
+    await navigator.clipboard.writeText(joinUrl(hostCode));
+    $('copyLinkBtn').textContent='✅ تم النسخ';
+    setTimeout(()=>{ $('copyLinkBtn').textContent='🔗 نسخ رابط الدعوة'; },1800);
+  }catch(e){ /* clipboard may be unavailable, ignore quietly */ }
+});
+
+$('hostRestartBtn').addEventListener('click', ()=>{
+  sndClick();
+  localStorage.removeItem('mg_host_code');
+  location.href = location.origin + location.pathname;
+});
+
+/* =====================================================================
+   PLAYER LOGIC
+   ===================================================================== */
+let myCode = null, myPlayerId = null, myName = null;
+let playerPlayers = [], playerRoom = null;
+let unsubPlayerRoom = null, unsubPlayerPlayers = null;
+let playerTimerInterval = null, hasVotedThisRound = false;
+
+$('joinBtn').addEventListener('click', async ()=>{
+  const name = $('joinName').value.trim();
+  const code = $('joinCode').value.trim();
+  $('joinError').textContent='';
+  if(!name){ $('joinError').textContent='اكتبي اسمك أول 🌸'; return; }
+  if(!/^\d{6}$/.test(code)){ $('joinError').textContent='رمز الغرفة لازم يكون 6 أرقام'; return; }
+  if(!selectedAvatar){ $('joinError').textContent='اختاري رمزك المميز'; return; }
+  sndClick();
+  $('joinBtn').disabled = true;
+  try{
+    const roomRef = doc(db,'rooms',code);
+    const snap = await getDoc(roomRef);
+    if(!snap.exists()){ $('joinError').textContent='ما لقينا هالغرفة، تأكدي من الرمز'; $('joinBtn').disabled=false; return; }
+    const playerId = (crypto.randomUUID ? crypto.randomUUID() : 'p'+Date.now()+Math.random().toString(16).slice(2));
+    await setDoc(doc(db,'rooms',code,'players',playerId), {
+      name, avatar:selectedAvatar, joinedAt: serverTimestamp(), totalVotes:0, titleWins:0
+    });
+    myCode=code; myPlayerId=playerId; myName=name;
+    localStorage.setItem('mg_player', JSON.stringify({code, playerId, name, avatar:selectedAvatar}));
+    attachPlayer(code, playerId, name, selectedAvatar);
+  }catch(e){
+    console.error(e);
+    $('joinError').textContent='صار خطأ بالاتصال، حاولي مرة ثانية';
+  }
+  $('joinBtn').disabled=false;
+});
+
+function attachPlayer(code, playerId, name, avatar){
+  myCode=code; myPlayerId=playerId; myName=name;
+  $('waitAvatar').textContent = avatar;
+  $('waitName').textContent = 'مرحبًا ' + name + ' 🌷';
+  $('progressPill').style.display='block';
+  $('progressPill').textContent = 'الغرفة: ' + code;
+
+  if(unsubPlayerPlayers) unsubPlayerPlayers();
+  unsubPlayerPlayers = onSnapshot(query(collection(db,'rooms',code,'players'), orderBy('joinedAt')), snap=>{
+    playerPlayers = snap.docs.map(d=>({id:d.id, ...d.data()}));
+  });
+
+  if(unsubPlayerRoom) unsubPlayerRoom();
+  unsubPlayerRoom = onSnapshot(doc(db,'rooms',code), async snap=>{
+    const data = snap.data();
+    if(!data) return;
+    const prevStatus = playerRoom ? playerRoom.status : null;
+    const prevQ = playerRoom ? playerRoom.qIndex : null;
+    playerRoom = data;
+    await handlePlayerRoomChange(prevStatus, prevQ);
+  });
+}
+
+async function handlePlayerRoomChange(prevStatus, prevQ){
+  if(playerRoom.status === 'lobby'){
+    showScreen('screen-waiting');
+  } else if(playerRoom.status === 'question'){
+    if(prevQ !== playerRoom.qIndex || prevStatus !== 'question'){
+      await playerStartQuestion();
+    }
+  } else if(playerRoom.status === 'result'){
+    clearInterval(playerTimerInterval);
+    playerShowResult();
+  } else if(playerRoom.status === 'final'){
+    clearInterval(playerTimerInterval);
+    playerShowFinal();
+  }
+}
+
+async function playerStartQuestion(){
+  hasVotedThisRound = false;
+  const qIndex = playerRoom.qIndex;
+  const badgeIdx = playerRoom.order[qIndex];
+  const item = BADGES[badgeIdx];
+  $('voteRoundTag').textContent = `السؤال ${qIndex+1} من ${playerRoom.order.length}`;
+  $('voteQuestionText').textContent = item.q + '؟';
+  $('votedBanner').style.display='none';
+  $('voteHint').style.display='block';
+  $('voteGrid').style.display='grid';
+
+  // check if already voted this round (e.g. after refresh)
+  try{
+    const voteRef = doc(db,'rooms',myCode,'rounds',String(qIndex),'votes',myPlayerId);
+    const voteSnap = await getDoc(voteRef);
+    hasVotedThisRound = voteSnap.exists();
+  }catch(e){ /* ignore */ }
+
+  renderVoteGrid();
+  if(hasVotedThisRound){ showVotedBanner(); }
+  showScreen('screen-vote');
+
+  const startedAtMs = () => playerRoom.questionStartedAt ? playerRoom.questionStartedAt.toMillis() : Date.now();
+  clearInterval(playerTimerInterval);
+  function tick(){
+    const elapsed = (Date.now()-startedAtMs())/1000;
+    const remaining = Math.max(0, Math.ceil(TIME_PER_Q-elapsed));
+    const pct = Math.max(0,(remaining/TIME_PER_Q)*100);
+    $('voteTimerBar').style.width = pct+'%';
+    $('voteTimerBar').classList.toggle('low', remaining<=5);
+    $('voteTimerNum').textContent = remaining+' ثانية';
+    if(remaining<=0){ clearInterval(playerTimerInterval); }
+  }
+  tick();
+  playerTimerInterval = setInterval(tick,1000);
+}
+
+function renderVoteGrid(){
+  $('voteCountLabel').textContent = '';
+  renderPlayerCardGrid($('voteGrid'), playerPlayers, null, (candidateId, cardEl)=>{
+    castMyVote(candidateId, cardEl);
+  }, hasVotedThisRound);
+}
+
+async function castMyVote(candidateId, cardEl){
+  if(hasVotedThisRound) return;
+  hasVotedThisRound = true;
+  sndPop();
+  cardEl.classList.add('pulse');
+  showVotedBanner();
+  try{
+    await setDoc(doc(db,'rooms',myCode,'rounds',String(playerRoom.qIndex),'votes',myPlayerId), {
+      votedFor: candidateId, ts: serverTimestamp()
+    });
+  }catch(e){ console.error(e); }
+}
+function showVotedBanner(){
+  $('votedBanner').style.display='block';
+  $('voteHint').style.display='none';
+  document.querySelectorAll('#voteGrid .player-card').forEach(c=>c.classList.add('disabled'));
+}
+
+function playerShowResult(){
+  const item = BADGES[playerRoom.lastBadgeIdx];
+  $('voteMedalEmoji').textContent = item.emoji;
+  $('voteBadgeTitle').textContent = item.emoji+' '+item.title;
+  $('voteBadgeQuestion').textContent = '« '+item.q+' »';
+  const names = playerRoom.lastWinnerNames || [];
+  $('voteBadgeWinner').innerHTML = names.length===0
+    ? '<span class="badge-empty">ما وصلت أصوات كافية هالمرة 😅</span>'
+    : names.join(' و ');
+  showScreen('screen-vote-result');
+  sndWin(); burstConfetti(100);
+}
+
+function playerShowFinal(){
+  $('progressPill').style.display='none';
+  const ranking = playerPlayers.slice().sort((a,b)=>(b.totalVotes||0)-(a.totalVotes||0));
+  $('voteCrownName').textContent = ranking[0] ? ranking[0].name : '';
+  renderRanking($('voteRankList'), ranking);
+  showScreen('screen-vote-final');
+  setTimeout(()=>{ burstConfetti(160); sndCrown(); },300);
+}
+
+/* =====================================================================
+   BOOTSTRAP: resume sessions or show role select
+   ===================================================================== */
+(async function bootstrap(){
+  if(savedHostCode){
+    try{
+      const snap = await getDoc(doc(db,'rooms',savedHostCode));
+      if(snap.exists()){ attachHost(savedHostCode); return; }
+      localStorage.removeItem('mg_host_code');
+    }catch(e){ /* fall through to role select */ }
+  }
+  if(savedPlayer && savedPlayer.code && savedPlayer.playerId){
+    try{
+      const snap = await getDoc(doc(db,'rooms',savedPlayer.code));
+      if(snap.exists()){
+        selectedAvatar = savedPlayer.avatar;
+        attachPlayer(savedPlayer.code, savedPlayer.playerId, savedPlayer.name, savedPlayer.avatar);
+        return;
+      }
+      localStorage.removeItem('mg_player');
+    }catch(e){ /* fall through */ }
+  }
+  if(urlCode){ showScreen('screen-join'); }
+  else{ showScreen('screen-role'); }
+})();
+
+</script>
+</body>
+</html>
